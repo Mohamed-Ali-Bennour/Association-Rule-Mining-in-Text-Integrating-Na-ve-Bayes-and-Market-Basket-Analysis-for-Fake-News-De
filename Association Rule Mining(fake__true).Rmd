@@ -1,0 +1,356 @@
+---
+title: "Association Rule Mining"
+output:
+  html_document: default
+  word_document: default
+  pdf_document: default
+date: "2024-12-05"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+This Project is developed as an application of the Market Basket Analysis in R for recognizing word association for fake and true job postings.
+
+Let us start by loading the packages required for the work.
+
+```{r}
+library(dplyr)
+```
+```{r}
+library(tm)
+```
+
+```{r}
+library(stringr)
+```
+
+```{r}
+library(wordcloud)
+library(RColorBrewer)
+```
+
+```{r}
+library(arules) 
+```
+
+```{r}
+library(tidyverse)
+
+```
+
+
+
+## Data Exploration
+
+```{r}
+true_data <- read.csv("True.csv")
+fake_data <- read.csv("Fake.csv")
+```
+
+```{r}
+head(true_data)
+```
+
+```{r}
+columns_to_keep <- c("title", "text", "subject", "type")
+
+
+fake_data<- fake_data %>% select(all_of(columns_to_keep))
+colnames(fake_data) 
+```
+
+
+```{r}
+
+true_data <- true_data %>% select(-date)
+colnames(fake_data) 
+```
+Display the size of the dataset
+```{r}
+dim(true_data)
+dim(fake_data)
+```
+
+
+A function clean_text for an automatic preprocessing
+```{r}
+
+library(tm)
+library(SnowballC)
+library(stringr)
+
+library(SnowballC)  # For stemming
+library(tm) # For stopwords
+library(dplyr)
+
+clean_text <- function(text) {
+  
+  # Replace email addresses with 'emailaddr' (modified pattern)
+  text <- gsub('[a-zA-Z0-9\\-\\.]+@[a-zA-Z0-9]+\\.[a-zA-Z]{2,4}', 'emailaddr', text)
+  
+  # Replace URLs with 'httpaddr'
+  text <- gsub('(http[s]?\\S+)|(\\w+\\.\\w{2,4}\\S*)', 'httpaddr', text)
+  
+  # Replace currency symbols with 'moneysymb'
+  text <- gsub('£|\\$', 'moneysymb', text)
+  
+  # Replace phone numbers with 'phonenumbr'
+  text <- gsub('\\+?\\(?\\d{1,2}\\)?[-\\s.]?\\d{3}[-\\s.]?\\d{3}[-\\s.]?\\d{4}', 'phonenumbr', text)
+  
+  # Replace numbers with 'numbr'
+  text <- gsub('\\d+(\\.\\d+)?', 'numbr', text)
+  
+  # Remove any non-word characters (except space)
+  text <- gsub('[^a-zA-Z0-9\\s]', ' ', text)
+  
+  # Remove extra spaces and trim leading/trailing whitespaces
+  text <- gsub('\\s+', ' ', text)
+  text <- gsub('^\\s+|\\s+?$', '', text)
+  
+  # Convert to lowercase
+  text <- tolower(text)
+  
+  # Tokenize the text, remove stopwords, and apply stemming
+  words <- strsplit(text, " ")[[1]]
+  words <- words[!words %in% stopwords("en")]  # Remove stopwords
+  
+  # Remove single-character words (like 'a', 'b', etc.)
+  words <- words[nchar(words) > 1]
+  
+  # Apply stemming
+  words <- wordStem(words)
+  
+  # Return the cleaned text as a single string
+  return(paste(words, collapse = " "))
+}
+
+# Apply the clean_text function to both 'title' and 'text' columns
+true_data$title <- sapply(true_data$title, clean_text)
+true_data$text <- sapply(true_data$text, clean_text)
+
+fake_data$title <- sapply(fake_data$title, clean_text)
+fake_data$text <- sapply(fake_data$text, clean_text)
+
+# Combine the datasets
+true_fake_job <- bind_rows(true_data, fake_data)
+
+
+# Shuffle the combined dataset
+shuffled_data <- true_fake_job[sample(nrow(true_fake_job)), ]
+
+# Inspect the cleaned and shuffled data
+head(shuffled_data)
+
+
+
+
+
+
+
+
+```
+
+```{r}
+library(tm) 
+```
+
+
+```{r}
+shuffled_data <- shuffled_data %>%
+  mutate(
+    title = title %>%
+      iconv(from = "latin1", to = "UTF-8", sub = "") %>%
+      str_trim() %>%
+      str_to_lower() %>%
+      str_remove_all("[[:punct:]]") %>%
+      str_remove_all("[0-9]+") %>%
+      removeWords(stopwords("en")) %>%
+      str_replace_all("[^[:alnum:] ]", "") %>%
+      str_replace_all("\\s+", " "),
+
+    text = text %>%
+      iconv(from = "latin1", to = "UTF-8", sub = "") %>%
+      str_trim() %>%
+      str_to_lower() %>%
+      str_remove_all("[[:punct:]]") %>%
+      str_remove_all("[0-9]+") %>%
+      removeWords(stopwords("en")) %>%
+      str_replace_all("[^[:alnum:] ]", "") %>%
+      str_replace_all("\\s+", " "),
+
+    subject = subject %>%
+      iconv(from = "latin1", to = "UTF-8", sub = "") %>%
+      str_trim() %>%
+      str_to_lower() %>%
+      str_remove_all("[[:punct:]]") %>%
+      str_remove_all("[0-9]+") %>%
+      removeWords(stopwords("en")) %>%
+      str_replace_all("[^[:alnum:] ]", "") %>%
+      str_replace_all("\\s+", " ")
+  )
+
+```
+Combine all rows into a single text string and search for word frequency.
+```{r}
+
+library(stringr)
+all_text <- str_c(shuffled_data$text, shuffled_data$subject, shuffled_data$title, collapse = " ")
+# Split the text into individual words
+word_list <- unlist(strsplit(all_text, " "))
+
+# Create a frequency table of words
+word_freq <- table(word_list)
+word_freq <- sort(word_freq, decreasing = TRUE)
+
+
+# Plot the word cloud
+wordcloud(names(word_freq), freq = word_freq, min.freq = 10, 
+          random.order = FALSE, colors = brewer.pal(8, "Dark2"))
+```
+
+```{r}
+library(dplyr)
+words_to_remove <- c("said", "president", "us","president","s","trump","will","new","states","t")
+
+# Create pattern and remove words
+pattern <- paste0("\\b(", paste(words_to_remove, collapse = "|"),")\\b")
+
+# Apply the pattern-based removal to the specified columns
+shuffled_data <- shuffled_data %>%
+  mutate(
+    title = str_replace_all(title, pattern, ""),
+    subject = str_replace_all(subject, pattern, ""),
+    text = str_replace_all(text, pattern, "")
+  )
+
+```
+
+
+
+```{r}
+# Combine columns into one
+shuffled_data$combined <- paste(shuffled_data$title, shuffled_data$text, shuffled_data$subject, sep = " ")
+
+# Process the combined column
+split_combined <- strsplit(shuffled_data$combined, " ")
+balanced_combined <- do.call(rbind, lapply(split_combined, function(x) { 
+  length(x) <- max(lengths(split_combined))
+  return(x)
+}))
+balanced_combined <- as.data.frame(balanced_combined)
+colnames(balanced_combined) <- paste0("word", 1:ncol(balanced_combined))
+
+# Add the label column back
+balanced_combined$type <- shuffled_data$type
+head(balanced_combined)
+```
+
+```{r}
+# Reorder columns by moving 'type' to the first position
+balanced_combined <- balanced_combined[c("type", setdiff(colnames(balanced_combined), "type"))]
+
+# Check the new column order
+colnames(balanced_combined)
+```
+Convert the dataframe into a transaction
+```{r}
+library(arules)
+library(dplyr)
+
+
+# Step 1: Clean and prepare the transactions list
+transactions_list <- apply(balanced_combined[, -ncol(balanced_combined)], 1, function(x) x[!is.na(x) & x != ""])
+
+# Step 2: Remove empty transactions (this ensures there are no rows with no items)
+transactions_list <- transactions_list[sapply(transactions_list, length) > 0]
+
+# Step 3: Remove duplicates within each transaction (ensure no repeated words in a single transaction)
+transactions_list <- lapply(transactions_list, function(x) unique(x))
+
+# Step 4: Optionally, sort each transaction's items (for consistency)
+transactions_list <- lapply(transactions_list, function(x) sort(x))
+
+# Step 5: Convert the cleaned list to a transaction format using 'arules'
+transactions <- as(transactions_list, "transactions")
+
+# Step 6: summary the transactions object
+summary(transactions)
+
+
+
+
+```
+
+```{r}
+par(las = 2)
+
+
+itemFrequencyPlot(transactions, support = 0.35)  
+```
+```{r}
+common_words = c('also','call','donald','like','peopl','presid','reuter','sai','time','year')
+
+long_data <- balanced_combined %>%
+  pivot_longer(cols = starts_with("word"), 
+               names_to = "word_column", 
+               values_to = "word") 
+# Filter rows where "word" matches the target words
+filtered_data <- long_data %>%
+  filter(word %in% common_words) %>%
+  group_by(word, type) %>% 
+  summarise(count = n(), .groups = "drop")
+
+# Create a bar chart
+# Ensure 'type' is a factor
+filtered_data$type <- as.factor(filtered_data$type)
+
+# Create the plot
+# Calculate the percentage for each word within its category
+filtered_data <- filtered_data %>%
+  group_by(word) %>%
+  mutate(percentage = (count / sum(count)) * 100)
+
+# Create the plot with percentages
+ggplot(filtered_data, aes(x = reorder(word, -percentage), y = percentage, fill = type)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(
+    title = "Percentage of Words in True vs Fake News",
+    x = "Word",
+    y = "Percentage (%)",
+    fill = "News Type"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 12)
+  ) +
+  scale_fill_brewer(palette = "Set1")
+
+
+
+```
+Performing the apriori algorithm
+```{r}
+textrules <- apriori(transactions, parameter = list(support =
+                                                      0.01, confidence = 0.25, minlen = 2))
+```
+
+```{r}
+textrules
+```
+Evaluating Model Performance
+```{r}
+summary(textrules)
+```
+
+```{r}
+library(arules)
+inspect(head(textrules, 20))
+```
+
