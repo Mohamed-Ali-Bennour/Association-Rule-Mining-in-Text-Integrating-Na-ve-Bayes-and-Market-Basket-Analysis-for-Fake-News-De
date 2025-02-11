@@ -29,5 +29,5 @@ The **Apriori algorithm** is applied to extract frequent itemsets and strong wor
 - **Fake News Dataset**: Contains fake news articles labeled as fake.
 - **True News Dataset**: Contains true news articles labeled as true.
 
-- 
+  
 Fake and True News Dataset Sources: https://www.kaggle.com/datasets/clmentbisaillon/fake-and-real-news-dataset
