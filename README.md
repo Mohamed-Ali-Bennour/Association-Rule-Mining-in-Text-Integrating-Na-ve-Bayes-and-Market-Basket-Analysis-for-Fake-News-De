@@ -1,6 +1,5 @@
 # Association Rule Mining in Text for Analysis of Word Associations
 
-# Fake News Detection Using Naïve Bayes and Market Basket Analysis
 
 This project integrates **Naïve Bayes** and **Market Basket Analysis (MBA)** to improve fake news detection by analyzing word associations.
 
