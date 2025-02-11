@@ -1,5 +1,4 @@
-# Text Mining with Naïve Bayes and Market Basket Analysis for Fake News Detection
-
+# Association Rule Mining in Text for Analysis of Word Associations
 
 # Fake News Detection Using Naïve Bayes and Market Basket Analysis
 
